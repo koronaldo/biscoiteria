@@ -17,6 +17,7 @@ class Pedido extends Model
     protected $fillable = [
         'cliente_id',
         'data_pedido',
+        'desconto',
         'valor_total',
     ];
 
@@ -28,8 +29,8 @@ class Pedido extends Model
     {
         return LogOptions::defaults()
             ->useLogName('Pedido')
-            ->logOnly(['cliente_id', 'data_pedido', 'valor_total'])
-            ->logOnlyDirty(['cliente_id', 'data_pedido', 'valor_total'])
+            ->logOnly(['cliente_id', 'data_pedido', 'desconto', 'valor_total'])
+            ->logOnlyDirty(['cliente_id', 'data_pedido', 'desconto', 'valor_total'])
             ->dontSubmitEmptyLogs();
     }
 

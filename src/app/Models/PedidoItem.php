@@ -33,4 +33,13 @@ class PedidoItem extends Model
     {
         return $this->belongsTo(ReceitaPacote::class);
     }
+
+    public function getDescricaoItemAttribute(): string
+    {
+        if ($this->forma_venda === 'pacote') {
+            return $this->receitaPacote?->descricao_completa ?? "Pacote #{$this->receita_pacote_id}";
+        }
+
+        return $this->receitaTamanho?->descricao_completa ?? "Item #{$this->id}";
+    }
 }

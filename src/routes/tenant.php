@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\PedidoImpressaoController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyBySubdomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
@@ -26,4 +27,8 @@ Route::middleware([
     Route::get('/', function () {
         return redirect('/app');
     });
+
+    Route::get('/app/pedidos/{pedido}/imprimir', [PedidoImpressaoController::class, 'show'])
+        ->middleware('auth')
+        ->name('pedidos.imprimir');
 });

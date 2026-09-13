@@ -10,6 +10,7 @@ use App\Models\ReceitaPacote;
 use App\Models\ReceitaTamanho;
 use App\Services\CustoEstimadorService;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -65,6 +66,15 @@ class PedidoResource extends Resource
                         ->required()
                         ->default(now()),
 
+                    TextInput::make('desconto')
+                        ->label('Desconto')
+                        ->prefix('R$')
+                        ->currencyMask(thousandSeparator: '.', decimalSeparator: ',', precision: 2)
+                        ->default(0)
+                        ->live(onBlur: true)
+                        ->dehydrateStateUsing(fn ($state) => $state ?? 0)
+                        ->afterStateUpdated(fn (Get $get, Set $set) => self::recalcularValorTotalPedido($get, $set)),
+
                     TextInput::make('valor_total')
                         ->label('Valor Total')
                         ->prefix('R$')
@@ -73,11 +83,11 @@ class PedidoResource extends Resource
                         ->live()
                         ->readOnly()
                         ->dehydrateStateUsing(fn ($state) => $state ?? 0)
-                        ->helperText('Preenchido automaticamente com a soma dos itens.')
+                        ->helperText('Soma dos itens menos o desconto, preenchido automaticamente.')
                         ->required(),
 
                 ])
-                ->columns(3)
+                ->columns(4)
                 ->columnSpanFull(),
 
             Section::make('Itens do Pedido')
@@ -92,7 +102,7 @@ class PedidoResource extends Resource
                             TableColumn::make('Biscoito / Pacote'),
                             TableColumn::make('Quantidade')->width('8rem'),
                             TableColumn::make('Preço Unitário'),
-                            TableColumn::make('Custo de Referência'),
+                            TableColumn::make('Valor Estimado'),
                             TableColumn::make('Total'),
                         ])
                         ->schema([
@@ -148,7 +158,7 @@ class PedidoResource extends Resource
                                 ->dehydrateStateUsing(fn ($state) => $state ?? 0)
                                 ->afterStateUpdated(fn (Get $get, Set $set) => self::recalcularItem($get, $set)),
 
-                            Placeholder::make('custo_referencia')
+                            Placeholder::make('valor_estimado')
                                 ->hiddenLabel()
                                 ->content(function (Get $get) use ($custo) {
                                     $formaVenda = $get('forma_venda') ?? 'unidade';
@@ -157,17 +167,17 @@ class PedidoResource extends Resource
 
                                     if ($formaVenda === 'pacote' && filled($pacoteId)) {
                                         $pacote = ReceitaPacote::find($pacoteId);
-                                        $valor = $pacote ? $custo->custoPacote($pacote) : 0.0;
+                                        $custoProducao = $pacote ? $custo->custoPacote($pacote) : 0.0;
                                     } elseif (filled($tamanhoId)) {
                                         $tamanho = ReceitaTamanho::find($tamanhoId);
-                                        $valor = $tamanho ? $custo->custoUnitarioTamanho($tamanho) : 0.0;
+                                        $custoProducao = $tamanho ? $custo->custoUnitarioTamanho($tamanho) : 0.0;
                                     } else {
-                                        $valor = 0.0;
+                                        $custoProducao = 0.0;
                                     }
 
-                                    return $custo->formatarReal($valor);
+                                    return $custo->formatarReal($custo->detalharVenda($custoProducao)['valor_venda']);
                                 })
-                                ->helperText('Custo estimado, apenas referência para definir o preço.')
+                                ->helperText('Valor de venda sugerido (custo de produção + lucro + mão de obra + despesa fixa da empresa), apenas referência.')
                                 ->alignEnd(),
 
                             TextInput::make('valor_total')
@@ -210,16 +220,17 @@ class PedidoResource extends Resource
 
         $set('valor_total', round($quantidade * $precoUnitario, 2));
 
-        self::recalcularValorTotalPedido($get, $set, '../../itens', '../../valor_total');
+        self::recalcularValorTotalPedido($get, $set, '../../');
     }
 
-    protected static function recalcularValorTotalPedido(Get $get, Set $set, string $itensPath = 'itens', string $valorTotalPath = 'valor_total'): void
+    protected static function recalcularValorTotalPedido(Get $get, Set $set, string $prefix = ''): void
     {
-        $itens = $get($itensPath) ?? [];
+        $itens = $get("{$prefix}itens") ?? [];
+        $desconto = (float) ($get("{$prefix}desconto") ?? 0);
 
-        $total = collect($itens)->sum(fn ($item) => (float) ($item['valor_total'] ?? 0));
+        $totalItens = collect($itens)->sum(fn ($item) => (float) ($item['valor_total'] ?? 0));
 
-        $set($valorTotalPath, round($total, 2));
+        $set("{$prefix}valor_total", round($totalItens - $desconto, 2));
     }
 
     public static function table(Table $table): Table
@@ -245,6 +256,13 @@ class PedidoResource extends Resource
             ])
             ->defaultSort('id', 'desc')
             ->recordActions([
+                Action::make('imprimir')
+                    ->label('Imprimir')
+                    ->icon(Heroicon::OutlinedPrinter)
+                    ->color('gray')
+                    ->url(fn (Pedido $record) => route('pedidos.imprimir', $record))
+                    ->openUrlInNewTab(),
+
                 EditAction::make(),
             ])
             ->toolbarActions([
