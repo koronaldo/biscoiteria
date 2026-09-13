@@ -15,14 +15,15 @@ class Receita extends Model
 
     protected $fillable = [
         'descricao',
+        'quantidade_horas',
     ];
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->useLogName('Receita')
-            ->logOnly(['descricao'])
-            ->logOnlyDirty(['descricao'])
+            ->logOnly(['descricao', 'quantidade_horas'])
+            ->logOnlyDirty(['descricao', 'quantidade_horas'])
             ->dontSubmitEmptyLogs();
     }
 

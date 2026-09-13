@@ -18,6 +18,9 @@ return [
     'central_domains' => [
         env('CENTRAL_DOMAIN', 'localhost'),
         '127.0.0.1',
+        'biscoiteria.local',
+        '192.168.18.102',
+        '192.168.18.102.nip.io',
     ],
 
     /**

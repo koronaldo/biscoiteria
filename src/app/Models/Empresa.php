@@ -18,7 +18,7 @@ class Empresa extends Model
         'inscricao_estadual',
         'inscricao_municipal',
         'percentual_lucro',
-        'percentual_maodeobra',
+        'valor_hora_maodeobra',
         'percentual_despesa_fixa',
     ];
 
@@ -26,8 +26,8 @@ class Empresa extends Model
     {
         return LogOptions::defaults()
             ->useLogName('Empresa')
-            ->logOnly(['entidade_id', 'inscricao_estadual', 'inscricao_municipal', 'percentual_lucro', 'percentual_maodeobra', 'percentual_despesa_fixa'])
-            ->logOnlyDirty(['entidade_id', 'inscricao_estadual', 'inscricao_municipal', 'percentual_lucro', 'percentual_maodeobra', 'percentual_despesa_fixa'])
+            ->logOnly(['entidade_id', 'inscricao_estadual', 'inscricao_municipal', 'percentual_lucro', 'valor_hora_maodeobra', 'percentual_despesa_fixa'])
+            ->logOnlyDirty(['entidade_id', 'inscricao_estadual', 'inscricao_municipal', 'percentual_lucro', 'valor_hora_maodeobra', 'percentual_despesa_fixa'])
             ->dontSubmitEmptyLogs();
     }
 

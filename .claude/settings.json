@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker start *)",
+      "Bash(docker rm *)",
+      "Bash(docker compose *)",
+      "Bash(docker network *)",
+      "Bash(docker run *)",
+      "Bash(python3 -m json.tool)",
+      "Bash(ls /home/ronaldo/projetos/cookies/src 2>&1 | head -5; ls -la /home/ronaldo/projetos/ | grep -i cookie)",
+      "Read(//home/ronaldo/projetos/cookies/src/**)",
+      "Read(//home/ronaldo/projetos/**)",
+      "Bash(docker volume *)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -H \"Host: liana.localhost\" http://localhost:8010/app/embalagens)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" -H \"Host: liana.localhost\" http://localhost:8010/app/produtos)",
+      "Bash(curl -s -H \"Host: liana.localhost\" http://localhost:8010/app/embalagens -D - -o /tmp/embalagens_body.html)",
+      "Read(//tmp/**)",
+      "Bash(rm -f cookies.txt)",
+      "Bash(curl -s -c cookies.txt -H \"Host: liana.localhost\" http://localhost:8010/app/login -o login.html)"
+    ]
+  }
+}

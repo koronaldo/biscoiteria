@@ -53,7 +53,7 @@ class EmpresaResource extends Resource
                 ])
                 ->columns(2),
 
-            Section::make('Percentuais')
+            Section::make('Precificação')
                 ->schema([
 
                     TextInput::make('percentual_lucro')
@@ -63,9 +63,9 @@ class EmpresaResource extends Resource
                         ->default(0)
                         ->dehydrateStateUsing(fn ($state) => $state ?? 0),
 
-                    TextInput::make('percentual_maodeobra')
-                        ->label('% de Mão de Obra')
-                        ->suffix('%')
+                    TextInput::make('valor_hora_maodeobra')
+                        ->label('Valor da Hora de Mão de Obra')
+                        ->prefix('R$')
                         ->currencyMask(thousandSeparator: '.', decimalSeparator: ',', precision: 2)
                         ->default(0)
                         ->dehydrateStateUsing(fn ($state) => $state ?? 0),

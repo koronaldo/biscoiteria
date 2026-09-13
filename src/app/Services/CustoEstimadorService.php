@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CompraItem;
+use App\Models\Embalagem;
 use App\Models\Empresa;
 use App\Models\Produto;
 use App\Models\ReceitaPacote;
@@ -105,7 +106,7 @@ class CustoEstimadorService
 
     public function custoPacote(ReceitaPacote $pacote): float
     {
-        $pacote->loadMissing(['tamanho', 'embalagens']);
+        $pacote->loadMissing(['tamanho', 'embalagem.itens']);
 
         // Arredonda o custo unitário do biscoito para centavos antes de
         // multiplicar pela quantidade do pacote — é assim que o valor por
@@ -113,9 +114,50 @@ class CustoEstimadorService
         // com a conta que o usuário faria de cabeça a partir dele.
         $custoUnitario = $pacote->tamanho ? round($this->custoUnitarioTamanho($pacote->tamanho), 2) : 0.0;
         $quantidadePorPacote = (float) $pacote->quantidade_por_pacote;
-        $custoMateriais = $this->calcularValorEstimado($pacote->embalagens);
+        $custoMateriais = $this->calcularValorEstimado($pacote->embalagem?->itens ?? collect());
 
         return ($custoUnitario * $quantidadePorPacote) + $custoMateriais;
+    }
+
+    /**
+     * Custo de mão de obra de uma única unidade do tamanho, rateando o
+     * tempo total gasto para produzir a receita (quantidade_horas) pela
+     * quantidade produzida daquele tamanho especificamente.
+     */
+    public function custoMaoDeObraUnitario(ReceitaTamanho $tamanho): float
+    {
+        $tamanho->loadMissing('receita');
+
+        $quantidadeProduzida = (float) $tamanho->quantidade_produzida;
+
+        if ($quantidadeProduzida <= 0) {
+            return 0.0;
+        }
+
+        $valorHora = (float) ($this->empresaAtual()?->valor_hora_maodeobra ?? 0);
+        $horas = (float) ($tamanho->receita?->quantidade_horas ?? 0);
+
+        return ($valorHora * $horas) / $quantidadeProduzida;
+    }
+
+    public function custoMaoDeObraPacote(ReceitaPacote $pacote): float
+    {
+        $pacote->loadMissing('tamanho');
+
+        if (! $pacote->tamanho) {
+            return 0.0;
+        }
+
+        return round($this->custoMaoDeObraUnitario($pacote->tamanho), 2) * (float) $pacote->quantidade_por_pacote;
+    }
+
+    public function custoEmbalagem(?int $embalagemId): float
+    {
+        if (blank($embalagemId)) {
+            return 0.0;
+        }
+
+        return $this->calcularValorEstimado(Embalagem::find($embalagemId)?->itens ?? collect());
     }
 
     public function empresaAtual(): ?Empresa
@@ -126,24 +168,25 @@ class CustoEstimadorService
     }
 
     /**
-     * Discrimina o preço de venda a partir do custo de produção, aplicando
-     * os percentuais de lucro, mão de obra e despesa fixa cadastrados na
-     * empresa — todos calculados sobre o mesmo valor base de produção,
-     * não em cascata um sobre o outro.
+     * Discrimina o preço de venda a partir do custo de produção. Lucro e
+     * despesa fixa são percentuais cadastrados na empresa, aplicados sobre
+     * o custo de produção (matéria-prima + embalagem). A mão de obra não é
+     * mais um percentual: é calculada fora deste método (valor da hora da
+     * empresa × horas da receita, rateado pela quantidade produzida) e
+     * apenas somada ao valor de venda.
      *
      * @return array{custo_producao: float, valor_lucro: float, valor_mao_de_obra: float, valor_despesa_fixa: float, valor_venda: float}
      */
-    public function detalharVenda(float $custoProducao): array
+    public function detalharVenda(float $custoProducao, float $custoMaoDeObra = 0.0): array
     {
         $empresa = $this->empresaAtual();
 
         $percentualLucro = (float) ($empresa?->percentual_lucro ?? 0);
-        $percentualMaoDeObra = (float) ($empresa?->percentual_maodeobra ?? 0);
         $percentualDespesaFixa = (float) ($empresa?->percentual_despesa_fixa ?? 0);
 
         $custoProducao = round($custoProducao, 2);
+        $valorMaoDeObra = round($custoMaoDeObra, 2);
         $valorLucro = round($custoProducao * $percentualLucro / 100, 2);
-        $valorMaoDeObra = round($custoProducao * $percentualMaoDeObra / 100, 2);
         $valorDespesaFixa = round($custoProducao * $percentualDespesaFixa / 100, 2);
 
         return [

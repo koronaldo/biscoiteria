@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ReceitaPacote extends Model
 {
@@ -13,6 +12,7 @@ class ReceitaPacote extends Model
     protected $fillable = [
         'receita_id',
         'receita_tamanho_id',
+        'embalagem_id',
         'descricao',
         'quantidade_por_pacote',
     ];
@@ -27,9 +27,9 @@ class ReceitaPacote extends Model
         return $this->belongsTo(ReceitaTamanho::class, 'receita_tamanho_id');
     }
 
-    public function embalagens(): HasMany
+    public function embalagem(): BelongsTo
     {
-        return $this->hasMany(ReceitaPacoteEmbalagem::class);
+        return $this->belongsTo(Embalagem::class);
     }
 
     public function getDescricaoCompletaAttribute(): string

@@ -5,19 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ReceitaPacoteEmbalagem extends Model
+class EmbalagemItem extends Model
 {
-    protected $table = 'receita_pacote_embalagens';
+    protected $table = 'embalagem_itens';
 
     protected $fillable = [
-        'receita_pacote_id',
+        'embalagem_id',
         'produto_id',
         'quantidade',
     ];
 
-    public function receitaPacote(): BelongsTo
+    public function embalagem(): BelongsTo
     {
-        return $this->belongsTo(ReceitaPacote::class);
+        return $this->belongsTo(Embalagem::class);
     }
 
     public function produto(): BelongsTo

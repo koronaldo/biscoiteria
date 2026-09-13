@@ -168,14 +168,17 @@ class PedidoResource extends Resource
                                     if ($formaVenda === 'pacote' && filled($pacoteId)) {
                                         $pacote = ReceitaPacote::find($pacoteId);
                                         $custoProducao = $pacote ? $custo->custoPacote($pacote) : 0.0;
+                                        $custoMaoDeObra = $pacote ? $custo->custoMaoDeObraPacote($pacote) : 0.0;
                                     } elseif (filled($tamanhoId)) {
                                         $tamanho = ReceitaTamanho::find($tamanhoId);
                                         $custoProducao = $tamanho ? $custo->custoUnitarioTamanho($tamanho) : 0.0;
+                                        $custoMaoDeObra = $tamanho ? $custo->custoMaoDeObraUnitario($tamanho) : 0.0;
                                     } else {
                                         $custoProducao = 0.0;
+                                        $custoMaoDeObra = 0.0;
                                     }
 
-                                    return $custo->formatarReal($custo->detalharVenda($custoProducao)['valor_venda']);
+                                    return $custo->formatarReal($custo->detalharVenda($custoProducao, $custoMaoDeObra)['valor_venda']);
                                 })
                                 ->helperText('Valor de venda sugerido (custo de produção + lucro + mão de obra + despesa fixa da empresa), apenas referência.')
                                 ->alignEnd(),
