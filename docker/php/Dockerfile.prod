@@ -1,0 +1,74 @@
+FROM php:8.4-fpm
+
+# Atualiza e instala dependências essenciais do PHP
+RUN apt-get update && apt-get install -y \
+    git unzip rsync curl libpq-dev libzip-dev zip libicu-dev \
+    libpng-dev libjpeg-dev libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install intl pdo_pgsql zip gd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar Node 20 e NPM
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
+COPY docker/php/fpm-pool.conf /usr/local/etc/php-fpm.d/zz-tuning.conf
+
+WORKDIR /var/www/html
+
+# ============================================
+# Copiar o código e buildar dependências
+# ============================================
+
+# 1. Copia só os manifests primeiro (aproveita cache de layers)
+COPY src/composer.json src/composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+
+# Sem package-lock.json no projeto: usa npm install em vez de npm ci
+COPY src/package.json ./
+RUN npm install
+
+# 2. Copia o restante do código
+COPY src/ ./
+
+# 3. Finaliza o composer (autoloader otimizado + scripts como package:discover)
+RUN composer dump-autoload --optimize && composer run-script post-autoload-dump || true
+
+# 4. Builda os assets do frontend (Vite)
+RUN npm run build
+
+# 4.1. Guarda uma cópia intocada do public/ recém-buildado. Em produção,
+# public/ é substituído por um volume nomeado persistente (para o nginx
+# enxergar os mesmos arquivos); o entrypoint sincroniza esta cópia para
+# dentro do volume a cada start, senão arquivos novos/alterados no build
+# nunca chegariam lá.
+RUN cp -a public public-build
+
+# 5. Diretórios de storage do Laravel (Livewire tmp, logs, cache, etc.)
+RUN mkdir -p \
+    /var/www/html/storage/app/private/livewire-tmp \
+    /var/www/html/storage/app/public \
+    /var/www/html/storage/framework/cache \
+    /var/www/html/storage/framework/sessions \
+    /var/www/html/storage/framework/views \
+    /var/www/html/storage/logs \
+    && chown -R www-data:www-data /var/www/html/storage bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage bootstrap/cache
+
+# 6. Entrypoint: sincroniza public-build/ -> public/ (volume) antes de subir o php-fpm
+COPY docker/php/entrypoint.prod.sh /entrypoint.prod.sh
+RUN chmod +x /entrypoint.prod.sh
+
+# Verifica, através do nginx, que o pipeline completo (nginx -> php-fpm -> Laravel)
+# está respondendo. Se todos os workers do PHP-FPM ficarem travados, esta checagem
+# falha junto, marcando o container como unhealthy.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f -s -o /dev/null --max-time 8 http://nginx/ || exit 1
+
+ENTRYPOINT ["/entrypoint.prod.sh"]
+CMD ["php-fpm"]

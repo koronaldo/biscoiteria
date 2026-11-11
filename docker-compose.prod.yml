@@ -1,0 +1,89 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile.prod
+    volumes:
+      - 'storage:/var/www/html/storage'
+      - 'public_assets:/var/www/html/public'
+    # O .env não vai para o Git: em produção (Coolify) as variáveis vêm daqui. As que têm ${...} sem padrão
+    # precisam ser preenchidas na tela de variáveis do Coolify.
+    environment:
+      APP_NAME: ${APP_NAME:-Biscoiteria}
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL}
+      APP_LOCALE: pt_BR
+      APP_FALLBACK_LOCALE: pt_BR
+      APP_FAKER_LOCALE: pt_BR
+      LOG_CHANNEL: stack
+      LOG_STACK: single
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-biscoiteria}
+      DB_CENTRAL_DATABASE: ${POSTGRES_DB:-biscoiteria}
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      CENTRAL_DOMAIN: ${CENTRAL_DOMAIN}
+      TENANT_DB_PREFIX: ${TENANT_DB_PREFIX:-biscoiteria_}
+      SESSION_DRIVER: database
+      SESSION_LIFETIME: ${SESSION_LIFETIME:-120}
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
+      BROADCAST_CONNECTION: log
+      FILESYSTEM_DISK: local
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+      MAIL_MAILER: ${MAIL_MAILER:-log}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-nao-responda@biscoiteria.local}
+      MAIL_FROM_NAME: ${APP_NAME:-Biscoiteria}
+      LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK: local
+    depends_on:
+      - postgres
+
+  nginx:
+    build:
+      context: ./docker/nginx
+      dockerfile: Dockerfile
+    expose:
+      - '80'
+    volumes:
+      - 'public_assets:/var/www/html/public'
+    depends_on:
+      - app
+
+  postgres:
+    image: 'postgres:17'
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-biscoiteria}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - 'pgdata:/var/lib/postgresql/data'
+
+  db-backup:
+    build:
+      context: ./docker/backup
+      dockerfile: Dockerfile
+    environment:
+      SCHEDULE: '0 12,19 * * *'
+      BACKUP_KEEP_DAYS: 30
+      POSTGRES_HOST: postgres
+      POSTGRES_DATABASES: ${POSTGRES_DATABASES:-biscoiteria,biscoiteria_liana}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_PREFIX: biscoiteria
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata: null
+  storage: null
+  public_assets: null
