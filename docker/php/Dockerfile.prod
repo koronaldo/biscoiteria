@@ -17,7 +17,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
-COPY docker/php/fpm-pool.conf /usr/local/etc/php-fpm.d/zz-tuning.conf
+COPY docker/php/fpm-pool.prod.conf /usr/local/etc/php-fpm.d/zz-tuning.conf
 
 WORKDIR /var/www/html
 
